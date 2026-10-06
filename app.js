@@ -85,10 +85,15 @@
       if(present){
         const hue=174+(iso.charCodeAt(0)*13+iso.charCodeAt(1)*7)%47;
         const gradient=ctx.createLinearGradient(0,200,2048,850);gradient.addColorStop(0,`hsla(${hue+10},95%,55%,.54)`);gradient.addColorStop(.5,`hsla(${hue},94%,45%,.62)`);gradient.addColorStop(1,`hsla(${hue-20},90%,53%,.48)`);ctx.fillStyle=gradient;ctx.fill();
-      }else{ctx.fillStyle='rgba(12,49,77,.18)';ctx.fill();}
+      }else{ctx.fillStyle=baseCountryColor(iso);ctx.fill();}
     });
     Object.entries(extras).forEach(([iso,coord])=>{const [x,y]=projection(coord);ctx.beginPath();ctx.arc(x,y,3,0,Math.PI*2);ctx.fillStyle=pulseMask?pulseColor(iso):'#8cffe0';ctx.fill();});
     return tex;
+  }
+  function baseCountryColor(iso){
+    // A steady blue base keeps non-recipient countries visible against the ocean.
+    const lightness=iso==='RU'?35:25+pulseSeed(iso)%9;
+    return `hsla(211,36%,${lightness}%,.86)`;
   }
   function pulseSeed(iso){return (iso.charCodeAt(0)*47+iso.charCodeAt(1)*83)%251;}
   function pulseColor(iso){const seed=pulseSeed(iso);return `rgb(${seed},${(seed*37)%255},255)`;}
@@ -96,7 +101,7 @@
     const renderer=new THREE.WebGLRenderer({canvas,alpha:true,antialias:true,powerPreference:'low-power'});
     renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1.7));renderer.outputColorSpace=THREE.SRGBColorSpace;
     const scene=new THREE.Scene();const camera=new THREE.PerspectiveCamera(40,1,.1,100);camera.position.z=5.7;
-    const globe=new THREE.Group();scene.add(globe);globe.rotation.x=.22;globe.rotation.y=-Math.PI/2-25*Math.PI/180;
+    const globe=new THREE.Group();scene.add(globe);globe.rotation.x=49*Math.PI/180;globe.rotation.y=-Math.PI/2-34*Math.PI/180;
     const geometry=new THREE.SphereGeometry(1.8,96,64);
     const baseMat=new THREE.MeshPhongMaterial({color:0x9ebacb,shininess:8,specular:0x18475c,emissive:0x142a40,emissiveIntensity:.55});
     const earth=new THREE.Mesh(geometry,baseMat);globe.add(earth);
@@ -147,7 +152,7 @@
     // Graceful fallback for browsers where WebGL is disabled.
     const old=canvas;const fallback=old.cloneNode(false);old.replaceWith(fallback);
     const ctx=fallback.getContext('2d');let lon=-25,size=0,time=0,last=0;
-    function draw(stamp){requestAnimationFrame(draw);const dt=Math.min((stamp-last)/1000,.05);last=stamp;if(document.hidden)return;if(!paused)time+=dt;const w=fallback.clientWidth;if(w!==size){size=w;fallback.width=w*1.5;fallback.height=w*1.5;}const n=fallback.width;ctx.clearRect(0,0,n,n);const projection=d3.geoOrthographic().translate([n/2,n/2]).scale(n*.41).rotate([lon,-13]);const path=d3.geoPath(projection,ctx);const g=ctx.createRadialGradient(n*.35,n*.25,0,n/2,n/2,n*.43);g.addColorStop(0,'#145075');g.addColorStop(1,'#020c18');ctx.beginPath();path({type:'Sphere'});ctx.fillStyle=g;ctx.fill();world.features.forEach(f=>{ctx.beginPath();path(f);const seed=pulseSeed(f.properties.iso);const breath=.5+.5*Math.sin(time*(.8+((seed*37)%255)/255*.5)+seed/255*Math.PI*2);ctx.fillStyle=byISO.has(f.properties.iso)?`hsl(${183+seed%35},80%,${20+breath*35}%)`:'#163349';ctx.fill();});if(!paused&&!dialog.open)lon+=dt*2;}
+    function draw(stamp){requestAnimationFrame(draw);const dt=Math.min((stamp-last)/1000,.05);last=stamp;if(document.hidden)return;if(!paused)time+=dt;const w=fallback.clientWidth;if(w!==size){size=w;fallback.width=w*1.5;fallback.height=w*1.5;}const n=fallback.width;ctx.clearRect(0,0,n,n);const projection=d3.geoOrthographic().translate([n/2,n/2]).scale(n*.41).rotate([lon,-13]);const path=d3.geoPath(projection,ctx);const g=ctx.createRadialGradient(n*.35,n*.25,0,n/2,n/2,n*.43);g.addColorStop(0,'#145075');g.addColorStop(1,'#020c18');ctx.beginPath();path({type:'Sphere'});ctx.fillStyle=g;ctx.fill();world.features.forEach(f=>{ctx.beginPath();path(f);const seed=pulseSeed(f.properties.iso);const breath=.5+.5*Math.sin(time*(.8+((seed*37)%255)/255*.5)+seed/255*Math.PI*2);ctx.fillStyle=byISO.has(f.properties.iso)?`hsl(${183+seed%35},80%,${20+breath*35}%)`:baseCountryColor(f.properties.iso);ctx.fill();});if(!paused&&!dialog.open)lon+=dt*2;}
     requestAnimationFrame(draw);return{focus(){},renderer:'canvas'};
   }
   Promise.all([fetch('./data.json').then(r=>{if(!r.ok)throw Error('data');return r.json();}),fetch('./world.json').then(r=>{if(!r.ok)throw Error('world');return r.json();})]).then(([data,geo])=>{
